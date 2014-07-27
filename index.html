@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Weather damage in the United States</title>
+  <meta charset="utf-8">
+  <meta name="description" content="Weather damage in the United States">
+  <meta name="author" content="Albert Aloy">
+  <meta name="generator" content="slidify" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta http-equiv="X-UA-Compatible" content="chrome=1">
+  <link rel="stylesheet" href="libraries/frameworks/io2012/css/default.css" media="all" >
+  <link rel="stylesheet" href="libraries/frameworks/io2012/css/phone.css" 
+    media="only screen and (max-device-width: 480px)" >
+  <link rel="stylesheet" href="libraries/frameworks/io2012/css/slidify.css" >
+  <link rel="stylesheet" href="libraries/highlighters/highlight.js/css/tomorrow.css" />
+  <base target="_blank"> <!-- This amazingness opens all links in a new tab. -->  <link rel=stylesheet href="./assets/css/ribbons.css"></link>
+
+  
+  <!-- Grab CDN jQuery, fall back to local if offline -->
+  <script src="http://ajax.aspnetcdn.com/ajax/jQuery/jquery-1.7.min.js"></script>
+  <script>window.jQuery || document.write('<script src="libraries/widgets/quiz/js/jquery.js"><\/script>')</script> 
+  <script data-main="libraries/frameworks/io2012/js/slides" 
+    src="libraries/frameworks/io2012/js/require-1.0.8.min.js">
+  </script>
+  
+  
+
+</head>
+<body style="opacity: 0">
+  <slides class="layout-widescreen">
+    
+    <!-- LOGO SLIDE -->
+        <slide class="title-slide segue nobackground">
+  <hgroup class="auto-fadein">
+    <h1>Weather damage in the United States</h1>
+    <h2></h2>
+    <p>Albert Aloy<br/></p>
+  </hgroup>
+  <article></article>  
+</slide>
+    
+
+    <!-- SLIDES -->
+    <slide class="" id="slide-1" style="background:;">
+  <article data-timings="">
+    <p></br></p>
+
+<h2>Abstract</h2>
+
+<p></br></p>
+
+<p>Weather impact in society is analized by using data records from the U.S. National Oceanic and Atmospheric Administration&#39;s (NOAA) storm database.</p>
+
+<p>I report the process of cleaning obtained the data and prepare it in order to show some evidence of which are the weather events that most injuries/fatalities and economic damage produce.</p>
+
+<h3>Libraries used:</h3>
+
+<pre><code class="r">library(&quot;ggplot2&quot;)
+library(&quot;utils&quot;)
+library(&quot;reshape2&quot;)
+library(&quot;R.utils&quot;)
+</code></pre>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="class" id="id" style="background:;">
+  <article data-timings="">
+    <p></br></p>
+
+<h2>Data processing</h2>
+
+<p></br></p>
+
+<p>The records are obtained from the data from the U.S. National Oceanic and Atmospheric Administration&#39;s (NOAA).</p>
+
+<p>Having the <a href="https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2">URL</a> we can proceed to download and unzip to the working directory.</p>
+
+<pre><code class="r">download.file(url,destfile=&quot;repdata_data_StormData.csv.bz2&quot;, method=&quot;curl&quot;)
+bunzip2(&quot;repdata_data_StormData.csv.bz2&quot;,&quot;repdata_data_StormData.csv&quot;,remove=F)
+</code></pre>
+
+<p>And proceed to read it</p>
+
+<pre><code class="r"># Load
+data&lt;-read.csv(&quot;repdata_data_StormData.csv&quot;, stringsAsFactors=FALSE)
+</code></pre>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="" id="slide-3" style="background:;">
+  <article data-timings="">
+    <p></br></p>
+
+<p>Having loaded the data, we take the data to the relevant attributes:</p>
+
+<ul>
+<li>EVTYPE: type of weather event</li>
+<li>FATALITIES: number of fatalities from the event</li>
+<li>INJURIES: number of people injured from the event</li>
+<li>PROPDMG: property damage in dollars</li>
+<li>PROPDMGEXP: property damage exponent (Hundreds, Thousands, Millions, etc.)</li>
+<li>CROPDMG: crop damage in dollars</li>
+<li>CROPDMGEXP: crop damage exponent (Hundreds, Thousands, Millions, etc.)</li>
+</ul>
+
+<pre><code class="r"># Subset
+data &lt;- data[c(&quot;EVTYPE&quot;, &quot;FATALITIES&quot;, &quot;INJURIES&quot;,
+                         &quot;PROPDMG&quot;, &quot;PROPDMGEXP&quot;, &quot;CROPDMG&quot;, &quot;CROPDMGEXP&quot;)]
+</code></pre>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="" id="slide-4" style="background:;">
+  <article data-timings="">
+    <p></br></p>
+
+<p>Being interested in the variable EVTYPE, which contains the weather events, it&#39;ll be useful to set up a vector with common expression patterns to exchange, since the original file is not regulated.</p>
+
+<pre><code class="r">patterns &lt;- c(&quot;tstm&quot;=&quot;thunderstorm&quot;, &quot; \\(.*\\)&quot;=&quot;&quot;, &quot;^ *&quot;=&quot;&quot;, &quot;  &quot;=&quot; &quot;, &quot;.*freeze.*&quot;=&quot;freeze&quot;, 
+          &quot;.*freezing.*&quot;=&quot;freezing fog&quot;, &quot;.*coastal.*&quot;=&quot;coastal flood&quot;, 
+          &quot;.*cold.*&quot;=&quot;cold/wind chill&quot;, &quot;winter w.*&quot;=&quot;winter weather&quot;, &quot;mud*&quot;=&quot;debris flow&quot;,
+          &quot;.*surf.*&quot;=&quot;high surf&quot;, &quot;.*ice.*&quot;=&quot;ice storm&quot;, &quot;.*frost.*&quot;=&quot;frost&quot;, 
+          &quot;^land.*&quot;=&quot;debris flow&quot;, &quot;.*debris.*&quot;=&quot;debris flow&quot;, 
+          &quot;.*hurricane.*&quot;=&quot;hurricane/typhoon&quot;, &quot;.*typhoon.*&quot;=&quot;hurricane/typhoon&quot;, 
+          &quot;^thunderstorm.*&quot;=&quot;thunderstorm wind&quot;, &quot; [.][0-9]*&quot;=&quot;&quot;, 
+          &quot;.*flash.*flood.*&quot;=&quot;flash flood&quot;, &quot;lake.*snow.*&quot;=&quot;lake-effect snow&quot;)
+</code></pre>
+
+<p></br></p>
+
+<h3><strong>To be continued...</strong></h3>
+
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+<slide class="" id="slide-5" style="background:;">
+  <article data-timings="">
+    
+  </article>
+  <!-- Presenter Notes -->
+</slide>
+
+    <slide class="backdrop"></slide>
+  </slides>
+  <div class="pagination pagination-small" id='io2012-ptoc' style="display:none;">
+    <ul>
+      <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=1 title=''>
+         1
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=2 title=''>
+         2
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=3 title=''>
+         3
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=4 title=''>
+         4
+      </a>
+    </li>
+    <li>
+      <a href="#" target="_self" rel='tooltip' 
+        data-slide=5 title=''>
+         5
+      </a>
+    </li>
+  </ul>
+  </div>  <!--[if IE]>
+    <script 
+      src="http://ajax.googleapis.com/ajax/libs/chrome-frame/1/CFInstall.min.js">  
+    </script>
+    <script>CFInstall.check({mode: 'overlay'});</script>
+  <![endif]-->
+</body>
+  <!-- Load Javascripts for Widgets -->
+  
+  <!-- LOAD HIGHLIGHTER JS FILES -->
+  <script src="libraries/highlighters/highlight.js/highlight.pack.js"></script>
+  <script>hljs.initHighlightingOnLoad();</script>
+  <!-- DONE LOADING HIGHLIGHTER JS FILES -->
+   
+  </html>
